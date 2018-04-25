@@ -12,6 +12,16 @@ def parse_login_info(info):
 	user = info[0:info.find('@')]		
 	return host, port, user	
 
+def execute_sql(cur):
+	while(True):
+		sql = raw_input(">>> ").strip('\r\n')
+		if(sql == "q" or sql == "quit"):
+			break
+		cur.execute(sql)
+		result = cur.fetchall()
+		for row in result:
+			print(row)
+			
 def main(argc, argv):
 	host = "localhost"
 	port = 3306
@@ -25,14 +35,7 @@ def main(argc, argv):
 	try:
 		conn = MySQLdb.connect(host, user, pswd, "", port)
 		cur = conn.cursor()		
-		while(True):
-			sql = raw_input(">>> ").strip('\r\n')
-			if(sql == "q" or sql == "quit"):
-				break
-			cur.execute(sql)
-			result = cur.fetchall()
-			for row in result:
-				print(row)
+		execute_sql(cur)
 		cur.close()
 		conn.commit()
 		conn.close()
