@@ -5,7 +5,7 @@
 类似mysql的source命令，可以批量执行sql文件，默认操作与sql文件名对应的数据库
 用法：./source.py [dir/file]
 对于数据库host、port、user、password，可自行修改
-目前支持ansi和utf-8编码的sql文件
+目前仅支持utf-8编码的sql文件
 脚本执行过程中可能会有warning，可忽略
 '''
 
@@ -13,13 +13,32 @@ import os
 import sys
 import MySQLdb
 	
+def quota_inner(data, pos):
+	#判断pos位置的字符是否在字符串中
+	if(pos <= 0 or pos >= len(data)):
+		return False
+
+	ch = ''
+	while pos > 0:
+		pos = pos -1
+		if(data[pos] == '\n'):
+			break
+		elif(data[pos] == ch):
+			ch = ''
+		elif(data[pos] in "`'\"" and ch == ''):
+			ch = data[pos]
+
+	if(len(ch) > 0):
+		return True
+	return False
+
 def clear_comment(data):
 	#clear multi-line comment
 	pos1, pos2 = 0, 0
 	while True:
 		pos2 = data.find("/*", pos1)
-		if(pos2 == -1):
-			break
+		if(pos2 == -1 or quota_inner(data, pos2)):
+			break		
 		else:
 			pos1 = pos2
 			pos2 = data.find("*/", pos1)
@@ -40,7 +59,7 @@ def clear_comment(data):
 			pos2 = p2
 		else:
 			pos2 = p1
-		if(pos2 == -1):
+		if(pos2 == -1  or quota_inner(data, pos2)):
 			break
 		else:
 			pos1 = pos2
@@ -54,6 +73,7 @@ def clear_comment(data):
 def parse_sql(data):	
 	data = clear_comment(data)
 	data = data.replace("\xef\xbb\xbf", "")
+	data = data.replace("\ufeff", "")
 	data = data.replace("\r", "")
 	data = data.replace("\n", "")
 	data = data.split(";")
@@ -102,6 +122,12 @@ def main(argc, argv):
 	try:
 		conn = MySQLdb.connect("localhost", "root", "123456")
 		cur = conn.cursor()		
+
+		conn.set_character_set('utf8')
+		cur.execute('SET NAMES utf8')
+		cur.execute('SET CHARACTER SET utf8')
+		cur.execute('SET character_set_connection=utf8')
+
 		if(os.path.isdir(argv[1])):
 			execute_sql_dir(cur, argv[1])
 		else:
@@ -109,7 +135,7 @@ def main(argc, argv):
 		cur.close()
 		conn.commit()
 		conn.close()
-	except MySQLdb.Error,e:
+	except MySQLdb.Error as e:
 		print("ERROR %d: %s" %(e.args[0], e.args[1]))	
 
 if __name__ == '__main__':
